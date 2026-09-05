@@ -1,0 +1,20 @@
+include README.md
+include LICENSE
+include CITATION.cff
+include CONTRIBUTING.md
+include requirements.txt
+include pyproject.toml
+include setup.py
+
+recursive-include src/pitide *.py
+recursive-include notebooks *.ipynb
+recursive-include experiments *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.pyc
+recursive-exclude * *.pyo
+recursive-exclude * .pytest_cache
+recursive-exclude * .coverage
+recursive-exclude * .mypy_cache
+recursive-exclude * *.egg-info
+recursive-exclude * dist
+recursive-exclude * build

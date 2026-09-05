@@ -1,0 +1,49 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Nasir
+    given-names: M. D.
+    orcid: "https://orcid.org/0000-0000-0000-0000"
+  - family-names: Hanif
+    given-names: M. F.
+  - family-names: Hassan
+    given-names: M. T.
+  - family-names: Malik
+    given-names: M. I.
+  - family-names: Tahir
+    given-names: A.
+  - family-names: Husnain
+    given-names: N.
+title: "Physics-Informed Time-Series Dense Encoder (PI-TiDE) for Electricity Load Demand Forecasting"
+version: 1.0.0
+doi: 10.1093/ce/zkag048
+date-released: 2026-01-15
+url: "https://github.com/yourusername/PI-TiDE"
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Nasir
+      given-names: M. D.
+    - family-names: Hanif
+      given-names: M. F.
+    - family-names: Hassan
+      given-names: M. T.
+    - family-names: Malik
+      given-names: M. I.
+    - family-names: Tahir
+      given-names: A.
+    - family-names: Husnain
+      given-names: N.
+  title: "Physics-Guided Temporal Fusion Transformer for High-Resolution Photovoltaic Power Forecasting Across Heterogeneous Solar Stations"
+  journal: "Clean Energy"
+  year: 2026
+  doi: "10.1093/ce/zkag048"
+license: MIT
+keywords:
+  - electricity load forecasting
+  - physics-informed neural networks
+  - TiDE
+  - ramp-rate constraints
+  - capacity envelope
+  - dynamic loss weighting
+  - automatic mixed precision
