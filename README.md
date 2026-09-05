@@ -31,6 +31,11 @@ pip install -r requirements.txt
 ```
 
 ## Quick Start
+```python
+# Add the src directory to path
+import sys
+sys.path.insert(0, '/kaggle/working/PI-TiDE/src')  # or wherever you cloned it
+```
 
 ```python
 from src.pitide import PITiDE, train_pi_tide
