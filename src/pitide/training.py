@@ -347,21 +347,28 @@ def train_pi_tide(
         viol_counts = {"sens": 0, "nonneg": 0, "ramp": 0, "env": 0, "total": 0}
         viol_totals = {"sens": 0, "nonneg": 0, "ramp": 0, "env": 0, "total": 0}
 
+        # First pass: compute val loss (no grad)
         with torch.no_grad():
+            for past_target, covariates, future_target in val_loader:
+                past_target = past_target.to(device)
+                covariates = covariates.to(device)
+                future_target = future_target.to(device)
+                preds = model(past_target, covariates)
+                val_loss_total += F.mse_loss(preds, future_target).item() * past_target.size(0)
+
+        # Second pass: compute violation rates (requires grad)
+        if use_physics:
             for past_target, covariates, future_target in val_loader:
                 past_target = past_target.to(device)
                 covariates = covariates.to(device).requires_grad_(True)
                 future_target = future_target.to(device)
                 preds = model(past_target, covariates)
 
-                val_loss_total += F.mse_loss(preds, future_target).item() * past_target.size(0)
-
-                if use_physics:
-                    viol = compute_violation_rates(model, past_target, covariates, preds, physics, max_ramp)
-                    for k in viol_counts:
-                        if k in viol:
-                            viol_counts[k] += viol[k] * past_target.size(0)
-                        viol_totals[k] += past_target.size(0)
+                viol = compute_violation_rates(model, past_target, covariates, preds, physics, max_ramp)
+                for k in viol_counts:
+                    if k in viol:
+                        viol_counts[k] += viol[k] * past_target.size(0)
+                    viol_totals[k] += past_target.size(0)
 
         val_loss = val_loss_total / len(val_ds)
 

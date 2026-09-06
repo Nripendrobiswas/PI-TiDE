@@ -65,35 +65,34 @@ def compute_violation_rates(
     max_ramp: float,
 ) -> Dict[str, float]:
     """
-    Compute physical violation rates (no gradients, for monitoring).
+    Compute physical violation rates.
 
-    Returns:
-        Dict with violation rates for each constraint
+    Note: Caller must ensure gradients are enabled (covariates.requires_grad_(True))
+    and this is called outside torch.no_grad() context.
     """
-    with torch.no_grad():
-        future_temp = covariates[:, model.lookback:, model.temp_idx]
-        grad_outputs = torch.ones_like(predictions)
-        d_pred_d_cov = torch.autograd.grad(
-            outputs=predictions,
-            inputs=covariates,
-            grad_outputs=grad_outputs,
-            retain_graph=False,
-        )[0]
-        d_pred_d_temp = d_pred_d_cov[:, model.lookback:, model.temp_idx]
+    future_temp = covariates[:, model.lookback:, model.temp_idx]
+    grad_outputs = torch.ones_like(predictions)
+    d_pred_d_cov = torch.autograd.grad(
+        outputs=predictions,
+        inputs=covariates,
+        grad_outputs=grad_outputs,
+        retain_graph=False,
+    )[0]
+    d_pred_d_temp = d_pred_d_cov[:, model.lookback:, model.temp_idx]
 
-        expected_sign = physics.expected_sensitivity_sign(future_temp)
-        sens_viol = (expected_sign * d_pred_d_temp < 0).float().mean().item()
-        nonneg_viol = (predictions < 0).float().mean().item()
-        diffs = predictions[:, 1:] - predictions[:, :-1]
-        ramp_viol = (diffs.abs() > max_ramp).float().mean().item()
+    expected_sign = physics.expected_sensitivity_sign(future_temp)
+    sens_viol = (expected_sign * d_pred_d_temp < 0).float().mean().item()
+    nonneg_viol = (predictions < 0).float().mean().item()
+    diffs = predictions[:, 1:] - predictions[:, :-1]
+    ramp_viol = (diffs.abs() > max_ramp).float().mean().item()
 
-        if hasattr(physics, "max_power_at_temp") and physics.envelope_temps is not None:
-            max_power = physics.max_power_at_temp(future_temp)
-            env_viol = (predictions > max_power).float().mean().item()
-        else:
-            env_viol = 0.0
+    if hasattr(physics, "max_power_at_temp") and physics.envelope_temps is not None:
+        max_power = physics.max_power_at_temp(future_temp)
+        env_viol = (predictions > max_power).float().mean().item()
+    else:
+        env_viol = 0.0
 
-        total_viol = float(sens_viol > 0 or nonneg_viol > 0 or ramp_viol > 0 or env_viol > 0)
+    total_viol = float(sens_viol > 0 or nonneg_viol > 0 or ramp_viol > 0 or env_viol > 0)
 
     return {
         "sensitivity_violation_rate": sens_viol,
