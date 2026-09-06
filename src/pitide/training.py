@@ -312,34 +312,38 @@ def train_pi_tide(
 
         # --- Dynamic loss weighting (GradNorm-style) ---
         if dynamic_weighting and use_physics:
-            with torch.no_grad():
-                # Compute gradient norms for each loss component
-                grad_norms = {}
-                for name, weight in [("sens", lambda_sens), ("nonneg", lambda_nonneg),
-                                      ("ramp", lambda_ramp), ("env", lambda_env)]:
-                    # Use a small batch to estimate gradient norm
-                    sample_past = past_target[:min(32, len(past_target))].detach()
-                    sample_cov = covariates[:min(32, len(covariates))].detach().requires_grad_(True)
-                    sample_pred = model(sample_past, sample_cov)
-                    sample_phys_loss, _ = physics_informed_loss(
-                        model, sample_past, sample_cov, sample_pred, physics, max_ramp,
-                        lambda_sens=lambda_sens if name == "sens" else 0,
-                        lambda_nonneg=lambda_nonneg if name == "nonneg" else 0,
-                        lambda_ramp=lambda_ramp if name == "ramp" else 0,
-                        lambda_env=lambda_env if name == "env" else 0,
-                    )
-                    grad = torch.autograd.grad(sample_phys_loss, model.parameters(),
-                                                retain_graph=True, allow_unused=True)
-                    total_norm = sum(g.norm(2).item() ** 2 for g in grad if g is not None) ** 0.5
-                    grad_norms[name] = total_norm + 1e-8
+            # Recompute sample data loss (fresh graph)
+            sample_past = past_target[:min(32, len(past_target))].detach()
+            sample_cov = covariates[:min(32, len(covariates))].detach()
+            sample_future = future_target[:min(32, len(future_target))].detach()
+            sample_pred = model(sample_past, sample_cov)
+            sample_data_loss = F.mse_loss(sample_pred, sample_future)
 
-                data_grad = torch.autograd.grad(data_loss, model.parameters(),
-                                                 retain_graph=False, allow_unused=True)
-                data_norm = sum(g.norm(2).item() ** 2 for g in data_grad if g is not None) ** 0.5
+            # Compute gradient norms for each loss component (requires grad)
+            grad_norms = {}
+            sample_cov_grad = sample_cov.detach().requires_grad_(True)
+            for name, weight in [("sens", lambda_sens), ("nonneg", lambda_nonneg),
+                                  ("ramp", lambda_ramp), ("env", lambda_env)]:
+                sample_pred_grad = model(sample_past, sample_cov_grad)
+                sample_phys_loss, _ = physics_informed_loss(
+                    model, sample_past, sample_cov_grad, sample_pred_grad, physics, max_ramp,
+                    lambda_sens=lambda_sens if name == "sens" else 0,
+                    lambda_nonneg=lambda_nonneg if name == "nonneg" else 0,
+                    lambda_ramp=lambda_ramp if name == "ramp" else 0,
+                    lambda_env=lambda_env if name == "env" else 0,
+                )
+                grad = torch.autograd.grad(sample_phys_loss, model.parameters(),
+                                            retain_graph=True, allow_unused=True)
+                total_norm = sum(g.norm(2).item() ** 2 for g in grad if g is not None) ** 0.5
+                grad_norms[name] = total_norm + 1e-8
 
-                # Update lambda weights
-                for name in lambda_current:
-                    lambda_current[name] = lambda_init[name] * (data_norm / grad_norms[name])
+            data_grad = torch.autograd.grad(sample_data_loss, model.parameters(),
+                                             retain_graph=False, allow_unused=True)
+            data_norm = sum(g.norm(2).item() ** 2 for g in data_grad if g is not None) ** 0.5
+
+            # Update lambda weights
+            for name in lambda_current:
+                lambda_current[name] = lambda_init[name] * (data_norm / grad_norms[name])
 
         # --- Validation ---
         model.eval()
